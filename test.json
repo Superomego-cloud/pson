@@ -1,0 +1,15 @@
+{
+    "value1":false,
+    "value2":true,
+    "value3":null,
+    "value_binarr": [
+                {
+                "index":0
+                },
+                {
+                "index":"one"
+                },
+                {
+                "index":[1, 1]
+                }]
+}
