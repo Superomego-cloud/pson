@@ -22,8 +22,8 @@ int main(int argc, char** argv){
     char *buf = malloc(len);
     fread(buf, sizeof(char), len, f);
 
-    JSON_val *main_object = JSON_parseObject(buf, len);
-    JSON_printVal(main_object);
+    JSON_val *main_object = JSON_parseValue(buf, len);
+    JSON_printValLn(main_object);
 
     return 0;
 }

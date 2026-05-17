@@ -33,35 +33,48 @@ typedef enum{
     ARRAY_JT,
     OBJECT_JT,
     VAR_JT,
-    FUNC_JT,
-    LAST_JT,
+    FUNC_JT
 
 }obj_t;
 
 typedef struct pc JSON_container;
 typedef struct pdl JSON_dictList;
+typedef struct pll JSON_doubleList;
 typedef struct pv JSON_val;
 
 struct pv{
-
     obj_t type; // type of object
     size_t len; // amount of string processed to get it
     void* data; // underlying data structure 
-
 };
 
 struct pc{
-    size_t size;
-    size_t val_c;
-    void** arr; // if type is ARRAY_JT, then this is an array of JSON_val 
-                // otherwise it's an array of JSON_dictlist
+    size_t size; // amount of items
+    size_t val_c; // amount of elements contained 
+    
+    // if ARRAY_JT, array of JSON_val*
+    // if OBJECT_JT, array of JSON_dictList*
+    void** arr; 
+
+    // null if ARRAY_JT, 
+    // pointers for start and end of keys DLL if OBJECT_JT
+    JSON_doubleList* keys_head; 
+    JSON_doubleList* keys_end;   
 };
 
 struct pdl{
     JSON_val *key;
     JSON_val *val;
+    JSON_doubleList *iter_entry;
     JSON_dictList *next;
 };
+
+struct pll{
+    JSON_doubleList *prev;
+    JSON_doubleList *next;
+    JSON_val *val;
+};
+
 
 uint32_t JSON_hash(JSON_val *key);
 char JSON_cmpstr(JSON_val *a, JSON_val *b);
@@ -70,7 +83,7 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize);
 
 char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val);
 void JSON_eraseDict(JSON_container *dct, JSON_val *key);
-JSON_val *JSON_getValue(JSON_container *dct, JSON_val *key);
+JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key);
 
 char JSON_pushback(JSON_container *arr, JSON_val* val);
 
@@ -120,18 +133,13 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
     c->size = nsize;
 
     if(type == ARRAY_JT){
-        
-        for(int i = 0; i < c->val_c; ++i){
-            c->arr[i] = oldarr[i];
-        }
-
+        for(int i = 0; i < c->val_c; ++i) c->arr[i] = oldarr[i];
     }
     else{
+
         JSON_dictList **ha = (JSON_dictList **) oldarr;
 
-        for(int i = 0; i < nsize; ++i){
-            c->arr[i] = NULL;
-        }
+        for(int i = 0; i < nsize; ++i) c->arr[i] = NULL;
 
         for(int i = 0; i < osize; ++i){
             
@@ -139,11 +147,14 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
             
             while(cn != NULL){
                 
-                JSON_insertDict(c, cn->key, cn->val);
-                n = cn;
-                cn = cn->next;
-                free(n);
+                uint32_t nloc = JSON_hash(cn->key)%nsize;
+                
+                n = cn->next;
+                cn->next = c->arr[nloc];
+                c->arr[nloc] = cn;
 
+                cn = n;
+                
             }
         }
 
@@ -183,8 +194,22 @@ char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
     dct->val_c++;
 
     ALLOC(ne, JSON_dictList); 
-    if(ne == NULL) return 0;
+    ALLOC(nke, JSON_doubleList); 
 
+    if(ne == NULL || nke == NULL) return 0;
+
+    nke->val = key;
+    nke->prev = dct->keys_end;
+    nke->next = NULL;
+
+    if(dct->keys_end != NULL){
+        dct->keys_end->next = nke;
+    }
+    dct->keys_end = nke;
+    
+    if(dct->keys_head == NULL) dct->keys_head = nke;
+
+    ne->iter_entry = nke;
     ne->key = key;
     ne->val = val;
     ne->next = NULL;
@@ -217,20 +242,33 @@ void JSON_eraseDict(JSON_container *dct, JSON_val *key){
 
     while(cn != NULL){
 
-        if(JSON_cmpstr(key, cn->key)){
-            
-            if(p == NULL) dct->arr[loc] = cn->next;
-            else p->next = cn->next;
-
-            free(cn->key);
-            free(cn->val);
-
+        if(!JSON_cmpstr(key, cn->key)){
+            p = cn;
+            cn = cn->next;
+            continue;
         }
-        p = cn;
-        cn = cn->next;
+
+        
+        if(p == NULL) dct->arr[loc] = cn->next;
+        else p->next = cn->next;
+                
+        if(cn->iter_entry == dct->keys_head) dct->keys_head = cn->iter_entry->next;
+        else cn->iter_entry->prev->next = cn->iter_entry->next;
+        
+        if(cn->iter_entry == dct->keys_end) dct->keys_end = dct->keys_end->prev;
+        else cn->iter_entry->next->prev = cn->iter_entry->prev;
+
+        free(cn->iter_entry);
+        free(cn->key);
+        free(cn->val);
+        free(cn);
+        
+        return;
+
     }
 
-};
+}
+
 
 void JSON_destroyValue(JSON_val *v){
 
@@ -266,12 +304,23 @@ void JSON_destroyContainer(JSON_container *c, obj_t type){
                 free(n);
             }
         }
+
+        JSON_doubleList *nke = c->keys_head, *ke;
+
+        while(nke != NULL){
+
+            // DO NOT FREE VALUES
+            // they are already freed in the prev loop
+            ke = nke;
+            nke = ke->next;
+            free(ke);
+        }
+
     }
-    else{
-        return;
-    }
+    else return;
 
     free(c->arr);
+    free(c);
 
 };
 
@@ -303,6 +352,20 @@ char JSON_cmpstr(JSON_val *a, JSON_val *b){
     }
     return 1;
 
+}
+
+JSON_container* JSON_createContainer(){
+    
+    ALLOC(arr, JSON_container);
+    
+    if(arr != NULL){
+        arr->size = 0;
+        arr->val_c = 0;
+        arr->keys_end = NULL;
+        arr->keys_head = NULL;
+    }
+        
+    return arr;
 }
 
 char JSON_matchString(char *str1, char *str2, size_t len1, size_t len2){

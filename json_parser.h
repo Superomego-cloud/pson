@@ -50,6 +50,12 @@ JSON_ParserFunc JSON_parseObject;
 JSON_ParserFunc JSON_parseValue;
 JSON_ParserFunc JSON_parseSpecial;
 
+/*
+NUMBER PARSING FUNCTION
+
+Checks if the first character is a digit/sign
+then parses numerical value
+*/
 JSON_val* JSON_parseNumeric(char *data, size_t dlen){
 
     if(dlen == 0) return NULL;
@@ -194,11 +200,15 @@ JSON_val *JSON_parseSequence(char start, char end, char* data, size_t dlen, JSON
     if(dlen == 0) return NULL;
     if(data[0] != start) return NULL;
 
-    ALLOC(arr, JSON_container);
-    arr->size = 0;
-    arr->val_c = 0;
+    JSON_container *arr = JSON_createContainer();
+    if(arr == NULL) return NULL;
 
     ALLOC(ret, JSON_val);
+    if(ret == NULL){
+        JSON_destroyContainer(arr, ARRAY_JT);
+        return NULL;
+    }
+
     ret->type = ARRAY_JT;
     ret->data = arr;
 
@@ -268,12 +278,16 @@ JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t d
     if(dlen == 0) return NULL;
     if(data[0] != start) return NULL;
 
+    JSON_container *dct = JSON_createContainer();
+    if(dct == NULL) return NULL;
 
-    ALLOC(dct, JSON_container);
-    dct->size = 0;
-    dct->val_c = 0;
-
+    
     ALLOC(ret, JSON_val);
+    if(ret == NULL){
+        JSON_destroyContainer(dct, OBJECT_JT);
+        return NULL;
+    }
+
     ret->type = OBJECT_JT;
     ret->data = dct;
 
@@ -289,7 +303,7 @@ JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t d
             s++;
             continue;
         }
-
+        
         if(c == end){
             
             if(ck == NULL || cv == NULL){
@@ -309,7 +323,7 @@ JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t d
             if(ck == NULL || cv == NULL){
                 break;
             }
-            
+
             JSON_insertDict(dct, ck, cv);
             s++;
 

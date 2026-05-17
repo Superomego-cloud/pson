@@ -28,20 +28,25 @@ void JSON_printVal(JSON_val *v){
             printf("]");
             break;
         case OBJECT_JT:
+            
             JSON_container *dct = v->data;
             printf("{");
-            for(int i = 0; i < dct->size; ++i){
-                JSON_dictList *cn = dct->arr[i];
-                while(cn != NULL){
-                    JSON_printVal(cn->key);
-                    printf(": ");
-                    JSON_printVal(cn->val);
-                    cn = cn->next;
-                    printf(",\n");
-                }
+
+            JSON_doubleList* lst = dct->keys_head;
+
+            while(lst != NULL){
+                
+                JSON_printVal(lst->val);
+                printf(":");
+
+                JSON_printVal(JSON_getDict(dct, lst->val));
+                if(lst->next != NULL) printf(", ");
+                lst = lst->next;
             }
+
             printf("}");
             break;
+
         default:
             printf("[SPEV]");
     }
