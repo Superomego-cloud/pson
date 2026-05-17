@@ -195,6 +195,10 @@ JSON_val *JSON_parseString(char *data, size_t dlen){
 
 }
 
+/*
+SEQUENCE PARSING FUNCTION
+Useful pattern for parsing arrays
+*/
 JSON_val *JSON_parseSequence(char start, char end, char* data, size_t dlen, JSON_ParserFunc parser){
 
     if(dlen == 0) return NULL;
@@ -272,6 +276,9 @@ inline JSON_val *JSON_parseArray(char *data, size_t dlen){
     return JSON_parseSequence('[', ']', data, dlen, JSON_parseValue);
 }   
 
+/*
+PAIR PARSING FUNCTION, might have to rewrite this to use JSON_parseSequence instead
+*/
 JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t dlen, 
                             JSON_ParserFunc parser_first, JSON_ParserFunc parser_second){
 
