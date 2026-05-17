@@ -26,7 +26,7 @@ of n elements of type T
 
 typedef enum{
 
-    BOOL_JT = 0,
+    SPECIAL_JT = 0,
     INTEGER_JT,
     FLOAT_JT,
     STRING_JT,

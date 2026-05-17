@@ -1,12 +1,5 @@
 {
-    "value1":false,
-    "value2":true,
-    "value3":null,
-    "value4":[1, 2, 3],
-    "value5":{
-        "value51":1,
-        "value52":"2",
-        "value53":[1, 2, 3],
-        "value54":[{"one":1}, {"two":2}, {"three":3}, {"four":4}]
-    }
+    "value1": true,
+    "value2": false,
+    "value3": null
 }

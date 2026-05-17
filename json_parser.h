@@ -14,20 +14,20 @@ Returns NULL if the number could not be parsed
 */
 
 JSON_val JV_TRUE = {
-    .type = BOOL_JT,
-    .data = 1,
+    .type = SPECIAL_JT,
+    .data = NULL,
     .len = 4
 };
 
 JSON_val JV_FALSE = {
-    .type = BOOL_JT,
-    .data = 2,
+    .type = SPECIAL_JT,
+    .data = NULL,
     .len = 5
 };
 
 JSON_val JV_NULL = {
-    .type = BOOL_JT,
-    .data = 0,
+    .type = SPECIAL_JT,
+    .data = NULL,
     .len = 4
 };
 

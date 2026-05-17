@@ -3,9 +3,9 @@
 void JSON_printVal(JSON_val *v){
 
     switch (v->type){
-        case BOOL_JT:
-            if(v->data == 0) printf("null");
-            else if(v->data == 1) printf("true");
+        case SPECIAL_JT:
+            if(v == &JV_NULL) printf("null");
+            else if(v == &JV_TRUE) printf("true");
             else printf("false");
             break;
         case INTEGER_JT:
