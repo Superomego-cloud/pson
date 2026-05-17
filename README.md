@@ -23,7 +23,7 @@ Additionally, to use a variable's value, you have to use angle brackets
                              // with the given args
 ```
 
-using the <> operator is equivalent to a non-variable JSON value, so you can use it when assigning variables and when calling/defining functions
+using the <> operator on a variable gives you the specific variable value in of itself, so you can use it when assigning variables and when calling/defining functions
 
 ```
 var varname = <var2name>
