@@ -32,15 +32,21 @@ typedef enum{
     STRING_JT,
     ARRAY_JT,
     OBJECT_JT,
-    VAR_JT,
+    PAIR_JT,
+    VAR_JT, 
     FUNC_JT
 
 }obj_t;
+
+#define isnumber(t) (t == INTEGER_JT || t == DOUBLE_JT)
+#define isstr(t) (t == STRING_JT || t == VAR_JT)
+#define iscontainer(t) (t == ARRAY_JT || t == OBJECT_JT ||)
 
 typedef struct pc JSON_container;
 typedef struct pdl JSON_dictList;
 typedef struct pll JSON_doubleList;
 typedef struct pv JSON_val;
+typedef struct pkv JSON_pair;
 
 struct pv{
     obj_t type; // type of object
@@ -62,6 +68,7 @@ struct pc{
     JSON_doubleList* keys_end;   
 };
 
+// head of a linked list in dictionary
 struct pdl{
     JSON_val *key;
     JSON_val *val;
@@ -69,12 +76,12 @@ struct pdl{
     JSON_dictList *next;
 };
 
+// iterator for dictionary, DLL for O(1) deletion and no need for random access
 struct pll{
     JSON_doubleList *prev;
     JSON_doubleList *next;
     JSON_val *val;
 };
-
 
 uint32_t JSON_hash(JSON_val *key);
 char JSON_cmpstr(JSON_val *a, JSON_val *b);
@@ -84,7 +91,6 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize);
 char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val);
 void JSON_eraseDict(JSON_container *dct, JSON_val *key);
 JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key);
-
 char JSON_pushback(JSON_container *arr, JSON_val* val);
 
 void JSON_destroyValue(JSON_val *v);
@@ -99,7 +105,7 @@ FNV-1a algorithm
 uint32_t JSON_hash(JSON_val *key){
 
     uint64_t val = FNV_OBASIS;
-    if(key->type != STRING_JT) return 0;
+    if(!) return 0;
 
     char *d = key->data;
 
@@ -283,6 +289,8 @@ void JSON_destroyValue(JSON_val *v){
 }
 
 void JSON_destroyContainer(JSON_container *c, obj_t type){
+
+    if(c == NULL) return;
 
     if(type == ARRAY_JT){
 

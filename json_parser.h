@@ -199,7 +199,8 @@ JSON_val *JSON_parseString(char *data, size_t dlen){
 SEQUENCE PARSING FUNCTION
 Useful pattern for parsing arrays
 */
-JSON_val *JSON_parseSequence(char start, char end, char* data, size_t dlen, JSON_ParserFunc parser){
+JSON_val *JSON_parseSequence(char start, char end, char sep, char* data, 
+                             size_t dlen, JSON_ParserFunc parser){
 
     if(dlen == 0) return NULL;
     if(data[0] != start) return NULL;
@@ -244,7 +245,7 @@ JSON_val *JSON_parseSequence(char start, char end, char* data, size_t dlen, JSON
             return ret;
         }
 
-        if(c == ','){
+        if(c == sep){
             
             if(cv == NULL) break;
             if(!JSON_pushback(arr, cv)) break;
@@ -273,13 +274,13 @@ JSON_val *JSON_parseSequence(char start, char end, char* data, size_t dlen, JSON
 }
 
 inline JSON_val *JSON_parseArray(char *data, size_t dlen){
-    return JSON_parseSequence('[', ']', data, dlen, JSON_parseValue);
-}   
+    return JSON_parseSequence('[', ']', ',', data, dlen, JSON_parseValue);
+} 
 
 /*
 PAIR PARSING FUNCTION, might have to rewrite this to use JSON_parseSequence instead
 */
-JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t dlen, 
+JSON_val *JSON_parseMembers(char start, char end, char pair, char sep, char *data, size_t dlen, 
                             JSON_ParserFunc parser_first, JSON_ParserFunc parser_second){
 
     if(dlen == 0) return NULL;
@@ -325,7 +326,7 @@ JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t d
             ret->len = s;
             return ret;
         }
-        if(c == ','){
+        if(c == sep){
             
             if(ck == NULL || cv == NULL){
                 break;
@@ -339,7 +340,7 @@ JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t d
             ck = cv = NULL;
             continue;
         }
-        if(c == sep){
+        if(c == pair){
             
             if(ck == NULL) break;
             if(cv != NULL) break;
@@ -387,7 +388,8 @@ JSON_val *JSON_parseMembers(char start, char end, char sep, char *data, size_t d
 }
 
 JSON_val *JSON_parseObject(char *data, size_t dlen){
-    return JSON_parseMembers('{', '}', ':', data, dlen, JSON_parseString, JSON_parseValue);
+    return JSON_parseMembers('{', '}', ':', ',',
+                             data, dlen, JSON_parseString, JSON_parseValue);
 }
 
 JSON_val *JSON_parseValue(char *data, size_t dlen){
