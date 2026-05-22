@@ -32,9 +32,8 @@ typedef enum{
     STRING_JT,
     ARRAY_JT,
     OBJECT_JT,
-    PAIR_JT,
-    VAR_JT, 
-    FUNC_JT
+    PAIR_JT, 
+    FUNC_JT 
 
 }obj_t;
 

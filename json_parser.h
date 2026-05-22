@@ -7,12 +7,11 @@
 #define endof(c) (c == ',' || c == ']' || c == '}')
 
 /*
-NUMBER PARSING FUNCTION
+SPECIAL VALUE SINGLETONS
 
-Makes sure that the entry is a valid number, then uses C stdlib to parse
-Returns NULL if the number could not be parsed
+This is the way booleans are handled by this JSON parser
+SPECIAL_JT is the type that refers to reserved keywords and such
 */
-
 JSON_val JV_TRUE = {
     .type = SPECIAL_JT,
     .data = NULL,
@@ -278,7 +277,10 @@ inline JSON_val *JSON_parseArray(char *data, size_t dlen){
 } 
 
 /*
-PAIR PARSING FUNCTION, might have to rewrite this to use JSON_parseSequence instead
+PAIR parsing function
+
+Returns a dictionary whose key/value pairs
+are the entries described
 */
 JSON_val *JSON_parseMembers(char start, char end, char pair, char sep, char *data, size_t dlen, 
                             JSON_ParserFunc parser_first, JSON_ParserFunc parser_second){
@@ -387,11 +389,36 @@ JSON_val *JSON_parseMembers(char start, char end, char pair, char sep, char *dat
 
 }
 
-JSON_val *JSON_parseObject(char *data, size_t dlen){
+/*
+OBJECT PARSING FUNCTION
+
+Parses a JSON object. Pretty straightforward.
+*/
+inline JSON_val *JSON_parseObject(char *data, size_t dlen){
     return JSON_parseMembers('{', '}', ':', ',',
                              data, dlen, JSON_parseString, JSON_parseValue);
 }
 
+/*
+SPECIAL VALUE PARSING FUNCTION
+
+idk if I could have done this cleaner or not tbh -_-
+*/
+JSON_val *JSON_parseSpecial(char *data, size_t dlen){
+
+    if(JSON_matchString(tr_str, data, 4, dlen)) return &JV_TRUE;
+    if(JSON_matchString(nu_str, data, 4, dlen)) return &JV_NULL;
+    if(JSON_matchString(fa_str, data, 5, dlen)) return &JV_FALSE;
+    
+    return NULL;
+}
+
+/*
+GENERAL PARSING FUNCTION
+
+takes the input and returns either a valid JSON value
+or NULL to indicate that the value isn't JSON
+*/
 JSON_val *JSON_parseValue(char *data, size_t dlen){
 
     if(dlen == 0) return NULL;
@@ -407,13 +434,4 @@ JSON_val *JSON_parseValue(char *data, size_t dlen){
 
     return ret;
 
-}
-
-JSON_val *JSON_parseSpecial(char *data, size_t dlen){
-
-    if(JSON_matchString(tr_str, data, 4, dlen)) return &JV_TRUE;
-    if(JSON_matchString(nu_str, data, 4, dlen)) return &JV_NULL;
-    if(JSON_matchString(fa_str, data, 5, dlen)) return &JV_FALSE;
-    
-    return NULL;
 }
