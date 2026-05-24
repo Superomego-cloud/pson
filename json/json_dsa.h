@@ -10,8 +10,8 @@
 #define FNV_OBASIS 2166136261
 
 // convenience macros
-#define MAX(x, y) x > y? x : y;
-#define MIN(x, y) x > y? x : y;
+#define MAX(x, y) (x > y? x : y)
+#define MIN(x, y) (x > y? x : y)
 
 // macros for memory allocation
 
@@ -32,14 +32,15 @@ typedef enum{
     STRING_JT,
     ARRAY_JT,
     OBJECT_JT,
-    PAIR_JT, 
+    PAIR_JT,
+    VAR_JT,
     FUNC_JT 
 
 }obj_t;
 
 #define isnumber(t) (t == INTEGER_JT || t == DOUBLE_JT)
 #define isstr(t) (t == STRING_JT || t == VAR_JT)
-#define iscontainer(t) (t == ARRAY_JT || t == OBJECT_JT ||)
+#define iscontainer(t) (t == ARRAY_JT || t == OBJECT_JT || t == FUNC_JT)
 
 typedef struct pc JSON_container;
 typedef struct pdl JSON_dictList;
@@ -82,21 +83,23 @@ struct pll{
     JSON_val *val;
 };
 
+// JSON string functions
 uint32_t JSON_hash(JSON_val *key);
-char JSON_cmpstr(JSON_val *a, JSON_val *b);
+char JSON_cmpkey(JSON_val *a, JSON_val *b);
+char JSON_matchString(char *str1, char *str2, size_t len1, size_t len2);
 
+// internal function that resizes container
 char JSON_resize(JSON_container *c, obj_t type, size_t nsize);
 
+// functions for JSON dictionnaries
 char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val);
 void JSON_eraseDict(JSON_container *dct, JSON_val *key);
 JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key);
 char JSON_pushback(JSON_container *arr, JSON_val* val);
 
+// destroyer functions 
 void JSON_destroyValue(JSON_val *v);
 void JSON_destroyContainer(JSON_container *c, obj_t type);
-void JSON_printVal(JSON_val *v);
-void JSON_printValLn(JSON_val *v);
-
 
 /*
 FNV-1a algorithm
@@ -104,7 +107,7 @@ FNV-1a algorithm
 uint32_t JSON_hash(JSON_val *key){
 
     uint64_t val = FNV_OBASIS;
-    if(!) return 0;
+    if(key->type != STRING_JT && key->type != VAR_JT) return 0;
 
     char *d = key->data;
 
@@ -116,10 +119,11 @@ uint32_t JSON_hash(JSON_val *key){
     uint32_t ret = val;
     return ret;
 
-}
+} 
 
 char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
 
+    if(c == NULL) return 0;
     if(type != ARRAY_JT && type != OBJECT_JT) return 0;
 
     if(nsize == 0){
@@ -138,7 +142,7 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
     c->size = nsize;
 
     if(type == ARRAY_JT){
-        for(int i = 0; i < c->val_c; ++i) c->arr[i] = oldarr[i];
+        for(int i = 0; i < MIN(c->val_c, nsize); ++i) c->arr[i] = oldarr[i];
     }
     else{
 
@@ -172,7 +176,8 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
 
 char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
 
-    if(key == NULL || val == NULL) return 0;
+    if(dct == NULL || key == NULL || val == NULL) return 0;
+    if(key->type != STRING_JT) return 0;
 
     if(2*(dct->val_c + 1) >= dct->size){
         if(!JSON_resize(dct, OBJECT_JT, 0)) return 0;
@@ -185,7 +190,7 @@ char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
 
         while(1){
             
-            if(JSON_cmpstr(key, cn->key)){
+            if(JSON_cmpkey(key, cn->key)){
                 cn->val = val;
                 return 1;
             }
@@ -228,6 +233,8 @@ char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
 
 char JSON_pushback(JSON_container *arr, JSON_val *val){
 
+    if(arr == NULL || val == NULL) return 0;
+
     if((arr->val_c + 1) * 2 >= arr->size){
         if(!JSON_resize(arr, ARRAY_JT, 0)){
             return 0;
@@ -242,12 +249,15 @@ char JSON_pushback(JSON_container *arr, JSON_val *val){
 
 void JSON_eraseDict(JSON_container *dct, JSON_val *key){
 
+    if(key == NULL || dct == NULL) return;
+    if(key->type != STRING_JT) return NULL;
+
     size_t loc = JSON_hash(key) % dct->size;
     JSON_dictList *p = NULL, *cn = dct->arr[loc];
 
     while(cn != NULL){
 
-        if(!JSON_cmpstr(key, cn->key)){
+        if(!JSON_cmpkey(key, cn->key)){
             p = cn;
             cn = cn->next;
             continue;
@@ -279,10 +289,20 @@ void JSON_destroyValue(JSON_val *v){
 
     if(v == NULL) return;
 
-    if(v->type == OBJECT_JT || v->type == ARRAY_JT) JSON_destroyContainer(v->data, v->type);
-    else free(v->data);
+    if(iscontainer(v->type)) JSON_destroyContainer(v->data, v->type);
+    else{
+        if(v->type == PAIR_JT){
+            JSON_val **arr = v->data;
+            JSON_destroyValue(arr[0]);
+            JSON_destroyValue(arr[1]);
+        }
 
-    free(v);
+        if(v->type != SPECIAL_JT){
+            free(v->data); // ideally we don't want to free the number one
+            free(v); 
+        } 
+    } 
+    
     return;
 
 }
@@ -298,31 +318,20 @@ void JSON_destroyContainer(JSON_container *c, obj_t type){
         }
     }
     else if(type == OBJECT_JT){
-        for(int i = 0; i < c->size; ++i){
-                
-            JSON_dictList *cn = c->arr[i], *n;   
-            while(cn != NULL){
-
-                JSON_destroyValue(cn->key);
-                JSON_destroyValue(cn->val);
-
-                n = cn;
-                cn = cn->next;
-                free(n);
-            }
-        }
-
+        
         JSON_doubleList *nke = c->keys_head, *ke;
 
         while(nke != NULL){
 
-            // DO NOT FREE VALUES
-            // they are already freed in the prev loop
+            JSON_val *assoc_val = JSON_getDict(c, nke->val);
+            JSON_destroyValue(assoc_val);
+            JSON_destroyValue(nke->val);
+
             ke = nke;
             nke = ke->next;
             free(ke);
         }
-
+        
     }
     else return;
 
@@ -337,7 +346,7 @@ JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key){
 
     JSON_dictList *cn = dct->arr[loc];
     while(cn != NULL){
-        if(JSON_cmpstr(key, cn->key)){
+        if(JSON_cmpkey(key, cn->key)){
             return cn->val;
         }
         cn = cn->next;
@@ -347,17 +356,13 @@ JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key){
 
 }
 
-char JSON_cmpstr(JSON_val *a, JSON_val *b){
+char JSON_cmpkey(JSON_val *a, JSON_val *b){
     
-    if(a->type != STRING_JT || b->type != STRING_JT) return 0;
+    if(a->type != b->type) return 0;
     if(a->len != b->len) return 0;
-
-    char *ac = a->data, *bc = b->data;
-    for(size_t i = 0; i < a->len; ++i){
-        if(ac[i] != bc[i]) 
-        return 0;
-    }
-    return 1;
+    if(a->type != STRING_JT && a->type != VAR_JT) return 0;
+    
+    return JSON_matchString(a->data, b->data, a->len, b->len);
 
 }
 
@@ -378,10 +383,8 @@ JSON_container* JSON_createContainer(){
 char JSON_matchString(char *str1, char *str2, size_t len1, size_t len2){
     
     if(len1 > len2) return 0;
-    
     for(int i = 0; i < len1; ++i) if(str1[i] != str2[i]) return 0;
     return 1;   
-
 }
 
 #define JSON_DSA_H

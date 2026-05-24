@@ -1,22 +1,22 @@
-#include "json_parser.h"
+#include "json/json_parser.h"
 #include "pson_dsa.h"
 
 typedef struct pbp PSON_func;
+typedef JSON_val* PSON_parserfunc(PSON_scope *scope, char *data, size_t dlen);
 
 JSON_val *PSON_parseValue(PSON_scope *scope, char *data, size_t dlen){
-    
-    JSON_val *lit = JSON_parseValue(data, dlen);
-    if(lit != NULL) return lit; // if parseable JSON value then return it as is
 
-    // if it's not a JSON literal then
-    // we parse it as an object
-    // we then parse it as an array
-    // we finally parse it as a variable
-    // if it's an assignment expression we update the current scope
-    // 
+    if(dlen == 0) return NULL;
 
-};
-JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
+    JSON_val *val = JSON_parseValue(data, dlen);
+    if(val != NULL) return val;
+
+    if(data[0] == '[') return PSON_parseArray(scope, data, dlen);
+    if(data[0] == '{') return PSON_parseObject(scope, data, dlen);
+
+}
+
+JSON_val *PSON_parseVar(PSON_scope *scope, char end, char *data, size_t dlen){
     
     size_t s = 0, st;
     char c = 0;
@@ -30,7 +30,7 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
     st = s;
 
     while(s < dlen){
-        if(data[s] == '=' || iswhitespace(data[s])) break;
+        if(data[s] == '=' || data[s] == end || iswhitespace(data[s])) break;
         ++s;
     }
 
@@ -39,6 +39,7 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
     ALLOC(vn, JSON_val);
     ALLOC(vs, JSON_val);
     M_ALLOC(pair, JSON_val*, 2);
+    M_ALLOC(buf, char, s-st);
     
     if(vs == NULL || pair == NULL || vn == NULL){
         free(vs);
@@ -47,8 +48,11 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
         return NULL;
     }
     
-    memcpy(vn, data+st, s-st);
-
+    memcpy(buf, data+st, s-st);
+    vn->type = VAR_JT;
+    vn->data = buf;
+    vn->len = s-st;
+    
     pair[0] = vn;
     pair[1] = NULL;
 
@@ -62,17 +66,21 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
             continue;
         }
 
-        if(data[s] == sep){
+        if(data[s] == '='){
+            ++s;
+            break;
+        }
+
+        if(data[s] == end){
             vs->len = s+1;
             return vs;
         }
-
-        if(data[s] == '=') break;
-
+        
     }
 
     if(s == dlen){
-        free(pair[0]);
+
+        JSON_destroyValue(pair[0]);
         free(pair);
         free(vs);
         return NULL;
@@ -85,6 +93,8 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
 
     JSON_val *var_v = PSON_parseValue(scope, data + s, dlen - s);
     if(var_v == NULL){
+        
+        free(buf);
         free(pair[0]);
         free(pair);
         free(vs);
@@ -166,3 +176,119 @@ JSON_val *PSON_parsePairLine(PSON_scope *scope, char *data, size_t dlen){
     free(ret);
     return NULL;
 };
+
+JSON_val *PSON_parseObject(PSON_scope *scope, char *data, size_t dlen){
+    
+    if(dlen == 0) return NULL;
+    if(data[0] != '{') return NULL;
+
+    JSON_container *dct = JSON_createContainer();
+    if(dct == NULL) return NULL;
+
+    
+    ALLOC(ret, JSON_val);
+    if(ret == NULL){
+        JSON_destroyContainer(dct, OBJECT_JT);
+        return NULL;
+    }
+
+    ret->type = OBJECT_JT;
+    ret->data = dct;
+
+    size_t s = 1;
+    JSON_val *ck = NULL, *cv = NULL;
+    char kf = 1, sf = 1;
+
+    while(s < dlen){
+
+        char c = data[s];
+
+        if(iswhitespace(c)){
+            s++;
+            continue;
+        }
+        
+        if(c == '}'){
+            
+            if(ck == NULL || cv == NULL){
+                if(!sf) break;
+                if(ck != cv) break;
+            }
+            else{
+                JSON_insertDict(dct, ck, cv);
+            }
+            
+            s++;
+            ret->len = s;
+            return ret;
+        }
+        if(c == ','){
+            
+            if(ck == NULL || cv == NULL){
+                break;
+            }
+
+            JSON_insertDict(dct, ck, cv);
+            s++;
+
+            sf = 0;
+            kf = 1;
+            ck = cv = NULL;
+            continue;
+        }
+        if(c == ':'){
+            
+            if(ck == NULL) break;
+            if(cv != NULL) break;
+           
+            kf = 0;
+            s++;
+            continue;
+
+        }
+
+        if(kf){ 
+            
+            if(ck != NULL) break;
+            
+            if(c == '"') ck = JSON_parseString(data + s, dlen - s);
+
+            if(ck != NULL){
+                s += ck->len;
+                continue;
+            }
+
+            JSON_val *var = PSON_parseVar(scope, ':', data + s, dlen - s);
+            if(var != NULL){
+                var = PSON_dereferenceValue(scope, var);
+                if(var->type != STRING_JT) break; 
+            }
+
+            break;
+            
+        }
+        else{
+            
+            if(cv != NULL) break;
+            cv = PSON_parseValue(scope, data + s, dlen - s);
+            
+            if(cv != NULL){
+                s += cv->len;
+                continue;
+            }
+            break;
+
+        }
+
+    }
+
+    JSON_destroyValue(ck);
+    JSON_destroyValue(cv);
+    JSON_destroyValue(ret);
+    return NULL;
+
+}
+
+JSON_val *PSON_parseArray(PSON_scope *scope, char *data, size_t dlen){
+    
+}

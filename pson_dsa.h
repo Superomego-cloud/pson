@@ -1,4 +1,4 @@
-#include "json_dsa.h"
+#include "json/json_dsa.h"
 #ifndef  PSON_DSA_H
 
 JSON_val *PSON_dereferenceValue(PSON_scope *scope, JSON_val *var);
@@ -12,7 +12,7 @@ struct psc{
 
 char PSON_assignValue(PSON_scope *scope, JSON_val *var){
     
-    if(var->type != JV_PAIR) return NULL;
+    if(var->type != PAIR_JT) return NULL;
     
     if(scope == NULL) return 0;
     return JSON_insertDict(scope->dict, ((JSON_val**) var->data)[0], ((JSON_val**) var->data)[1]);
@@ -20,6 +20,7 @@ char PSON_assignValue(PSON_scope *scope, JSON_val *var){
 
 JSON_val *PSON_dereferenceValue(PSON_scope *scope, JSON_val *var){
     
+    if(var->type != PAIR_JT) return NULL;
     if(scope == NULL || var == NULL) return NULL;
 
     if(((JSON_val**) var->data)[1] != NULL){
@@ -29,6 +30,20 @@ JSON_val *PSON_dereferenceValue(PSON_scope *scope, JSON_val *var){
 
     JSON_val *v = JSON_getDict(scope->dict, ((JSON_val**) var->data)[0]);
     if(v == NULL) return PSON_dereferenceValue(scope->par, var);
+
+}
+
+// ok now I have to reimplement all of this for iterables :wilted_rose:
+char PSON_destroyValue(JSON_val *val){
+
+    if(val->type == PAIR_JT){
+        PSON_destroyValue(((JSON_val**) val->data)[0]);
+        PSON_destroyValue(((JSON_val**) val->data)[1]);
+        free(val->data);
+        free(val);
+        return;
+    }
+    
 
 }
 
