@@ -1,5 +1,11 @@
 {
     "value1": true,
     "value2": false,
-    "value3": null
+    "value3": null,
+    "value4":{
+        "one":1,
+        "two":"two",
+        "three":[1, "two", [1,1,1]],
+        "four":{"one":1.0000001} 
+    }
 }

@@ -218,11 +218,11 @@ JSON_val *JSON_parseSequence(char start, char end, char sep, char* data,
 
     size_t s = 1;
     JSON_val *cv = NULL;
-    char sf = 1;
+    char sf = 1, c;
 
     while(s < dlen){
 
-        char c = data[s];
+        c = data[s];
 
         if(iswhitespace(c)){
             s++;
@@ -239,8 +239,8 @@ JSON_val *JSON_parseSequence(char start, char end, char sep, char* data,
                 if(!JSON_resize(arr, ARRAY_JT, arr->val_c)) break;
             }
 
-            s++;
-            ret->len = s;
+            ret->len = s+1;
+
             return ret;
         }
 

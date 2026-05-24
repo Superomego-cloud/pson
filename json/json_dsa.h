@@ -11,7 +11,7 @@
 
 // convenience macros
 #define MAX(x, y) (x > y? x : y)
-#define MIN(x, y) (x > y? x : y)
+#define MIN(x, y) (x > y? y : x)
 
 // macros for memory allocation
 
@@ -240,8 +240,8 @@ char JSON_pushback(JSON_container *arr, JSON_val *val){
             return 0;
         }
     }
-    
-    arr->arr[arr->val_c] = val;
+
+    ((JSON_val **) arr->arr)[arr->val_c] = val;
     arr->val_c++;
 
     return 1;
@@ -250,7 +250,7 @@ char JSON_pushback(JSON_container *arr, JSON_val *val){
 void JSON_eraseDict(JSON_container *dct, JSON_val *key){
 
     if(key == NULL || dct == NULL) return;
-    if(key->type != STRING_JT) return NULL;
+    if(key->type != STRING_JT) return;
 
     size_t loc = JSON_hash(key) % dct->size;
     JSON_dictList *p = NULL, *cn = dct->arr[loc];

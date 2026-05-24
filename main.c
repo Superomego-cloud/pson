@@ -1,5 +1,5 @@
-#include "json_parser.h"
-#include "json_print.h"
+#include "json/json_parser.h"
+#include "json/json_print.h"
 
 int main(int argc, char** argv){
 
@@ -23,7 +23,12 @@ int main(int argc, char** argv){
     fread(buf, sizeof(char), len, f);
 
     JSON_val *main_object = JSON_parseValue(buf, len);
-    JSON_printValLn(main_object);
 
+    if(main_object == NULL){
+        fprintf(stderr, "There was an error parsing the file\n");
+        return -1;
+    }
+
+    JSON_printValLn(main_object);
     return 0;
 }
