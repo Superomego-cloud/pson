@@ -1,11 +1,48 @@
 {
-    "value1": true,
-    "value2": false,
-    "value3": null,
-    "value4":{
-        "one":1,
-        "two":"two",
-        "three":[1, "two", [1,1,1]],
-        "four":{"one":1.0000001} 
+    "int_test":{
+        "one": 1,
+        "fhfs": 457,
+        "nine^7": 9999999
+    },
+
+    "float_test":{
+        "one_point_o^3_1": 1.0001,
+        "zero_point_numbers": 0.002344,
+        "one_e_seventeen_point_six_seven": 1.67e17
+    },
+
+    "string_test":{
+        "key":"value",
+        "string":"other string",
+        "wait a second": "\u0123\"special characters"
+    },
+
+    "special_test":{
+        "true": true,
+        "false": false,
+        "null": null
+    },
+
+    "array_test":{
+        "one":[],
+        "two":[1, 2],
+        "three":[1, 2.0001, "three", true]
+    },
+
+    "object_test":{
+        "one":{
+            "key":"value",
+            "okey":1,
+            "three_key":["array_with_value_in_it", 1],
+            "four_key":[
+                {"name":"object_in_array"},
+                {"name":"other_object_in_array"},
+                "end",
+                false,
+                1,
+                null
+            ]
+        }
     }
+
 }

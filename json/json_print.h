@@ -1,8 +1,11 @@
 #include "json_dsa.h"
 
+#ifndef JSON_PRINT_H
+
 void JSON_printVal(JSON_val *v){
 
     switch (v->type){
+
         case SPECIAL_JT:
             if(v == &JV_NULL) printf("null");
             else if(v == &JV_TRUE) printf("true");
@@ -56,3 +59,6 @@ void JSON_printValLn(JSON_val* v){
     JSON_printVal(v);
     printf("\n");
 }
+
+#define JSON_PRINT_H
+#endif

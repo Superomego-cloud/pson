@@ -1,4 +1,4 @@
-#include "json/json_parser.h"
+#include "pson_parser.h"
 #include "json/json_print.h"
 
 int main(int argc, char** argv){
@@ -22,7 +22,7 @@ int main(int argc, char** argv){
     char *buf = malloc(len);
     fread(buf, sizeof(char), len, f);
 
-    JSON_val *main_object = JSON_parseValue(buf, len);
+    JSON_val *main_object = PSON_parseValue(NULL, buf, len);
 
     if(main_object == NULL){
         fprintf(stderr, "There was an error parsing the file\n");

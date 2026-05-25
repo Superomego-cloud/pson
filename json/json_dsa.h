@@ -89,6 +89,7 @@ char JSON_cmpkey(JSON_val *a, JSON_val *b);
 char JSON_matchString(char *str1, char *str2, size_t len1, size_t len2);
 
 // internal function that resizes container
+JSON_container *JSON_createContainer();
 char JSON_resize(JSON_container *c, obj_t type, size_t nsize);
 
 // functions for JSON dictionnaries
@@ -177,7 +178,7 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
 char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
 
     if(dct == NULL || key == NULL || val == NULL) return 0;
-    if(key->type != STRING_JT) return 0;
+    if(key->type != STRING_JT && key->type != VAR_JT) return 0;
 
     if(2*(dct->val_c + 1) >= dct->size){
         if(!JSON_resize(dct, OBJECT_JT, 0)) return 0;
@@ -304,6 +305,62 @@ void JSON_destroyValue(JSON_val *v){
     } 
     
     return;
+
+}
+
+// returns deep copy of value
+JSON_val *JSON_copyValue(JSON_val *v){
+
+    if(v == NULL) return NULL;
+    if(v->type == SPECIAL_JT) return v;
+
+    ALLOC(cp, JSON_val);
+    if(cp == NULL) return NULL;
+
+    cp->type = v->type;
+
+    switch (v->type){
+    case INTEGER_JT:
+        ALLOC(ni, long long);
+        *ni = *((long long *) v->data);
+        cp->data = (void *) ni;
+        break;
+    case FLOAT_JT:
+        ALLOC(nd, double);
+        *nd = *((double *) v->data);
+        cp->data = (void *) nd;
+        break;
+    case STRING_JT:
+        M_ALLOC(ns, char, v->len);
+        memcpy(ns, (char *)v->data, v->len);
+        cp->data = ns;
+        break;
+    case ARRAY_JT:
+        
+        JSON_container *na = JSON_createContainer(), *oa = v->data;
+        JSON_val **arr = (JSON_val **)oa->arr;
+
+        for(int i = 0; i < oa->val_c; ++i) JSON_pushback(na, JSON_copyValue(arr[i]));
+        cp->data = na;
+        break;
+    
+    case OBJECT_JT:
+
+        JSON_container *nc = JSON_createContainer(), *oc = v->data;
+        JSON_doubleList *h = oc->keys_head;
+
+        while(h != NULL){
+            JSON_insertDict(nc, JSON_copyValue(h->val), JSON_copyValue(JSON_getDict(oc, h->val)));
+            h = h->next;
+        }
+
+        cp->data = nc;    
+
+    default:
+        break;
+    }
+
+    return cp;
 
 }
 
