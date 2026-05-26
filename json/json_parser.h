@@ -167,11 +167,11 @@ JSON_val *JSON_parseString(char *data, size_t dlen){
             }
         }
         if(c == '\"'){
-            s++;
-            f++;
+            ++s;
+            f=1;
             break;
         }
-        s++;
+        ++s;
     }
 
     if(!f) return NULL;
@@ -186,7 +186,7 @@ JSON_val *JSON_parseString(char *data, size_t dlen){
         if(ss == NULL) return NULL;
 
         memcpy(ss, data, s*sizeof(char));
-        ss[s+1] = 0;
+        ss[s] = 0;
         ret->data = ss;
     }
 

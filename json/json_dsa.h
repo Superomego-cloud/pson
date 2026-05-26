@@ -175,6 +175,39 @@ char JSON_resize(JSON_container *c, obj_t type, size_t nsize){
 
 }
 
+char JSON_pushback(JSON_container *arr, JSON_val *val){
+
+    if(arr == NULL || val == NULL) return 0;
+
+    if((arr->val_c + 1) * 2 >= arr->size){
+        if(!JSON_resize(arr, ARRAY_JT, 0)){
+            return 0;
+        }
+    }
+
+    ((JSON_val **) arr->arr)[arr->val_c] = val;
+    arr->val_c++;
+
+    return 1;
+}
+
+JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key){
+
+    if(dct->size == 0) return NULL;
+    size_t loc = JSON_hash(key) % dct->size;
+
+    JSON_dictList *cn = dct->arr[loc];
+    while(cn != NULL){
+        if(JSON_cmpkey(key, cn->key)){
+            return cn->val;
+        }
+        cn = cn->next;
+    }
+
+    return NULL;
+
+}
+
 char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
 
     if(dct == NULL || key == NULL || val == NULL) return 0;
@@ -230,22 +263,6 @@ char JSON_insertDict(JSON_container *dct, JSON_val *key, JSON_val* val){
 
     return 1;
 
-}
-
-char JSON_pushback(JSON_container *arr, JSON_val *val){
-
-    if(arr == NULL || val == NULL) return 0;
-
-    if((arr->val_c + 1) * 2 >= arr->size){
-        if(!JSON_resize(arr, ARRAY_JT, 0)){
-            return 0;
-        }
-    }
-
-    ((JSON_val **) arr->arr)[arr->val_c] = val;
-    arr->val_c++;
-
-    return 1;
 }
 
 void JSON_eraseDict(JSON_container *dct, JSON_val *key){
@@ -320,48 +337,96 @@ JSON_val *JSON_copyValue(JSON_val *v){
     cp->type = v->type;
 
     switch (v->type){
-    case INTEGER_JT:
-        ALLOC(ni, long long);
-        *ni = *((long long *) v->data);
-        cp->data = (void *) ni;
-        break;
-    case FLOAT_JT:
-        ALLOC(nd, double);
-        *nd = *((double *) v->data);
-        cp->data = (void *) nd;
-        break;
-    case STRING_JT:
-        M_ALLOC(ns, char, v->len);
-        memcpy(ns, (char *)v->data, v->len);
-        cp->data = ns;
-        break;
-    case ARRAY_JT:
         
-        JSON_container *na = JSON_createContainer(), *oa = v->data;
-        JSON_val **arr = (JSON_val **)oa->arr;
+        case INTEGER_JT:
+        
+            ALLOC(ni, long long);
+            if(ni == NULL) return NULL;
+            *ni = *((long long *) v->data);
+            cp->data = (void *) ni;
+            break;
+        
+        case FLOAT_JT:
+        
+            ALLOC(nd, double);
+            if(nd == NULL) return NULL;
+            
+            *nd = *((double *) v->data);
+            cp->data = (void *) nd;
+            break;
+        
+        case STRING_JT:
 
-        for(int i = 0; i < oa->val_c; ++i) JSON_pushback(na, JSON_copyValue(arr[i]));
-        cp->data = na;
-        break;
-    
-    case OBJECT_JT:
+            M_ALLOC(ns, char, v->len+1);
+            if(ns == NULL) return NULL;
 
-        JSON_container *nc = JSON_createContainer(), *oc = v->data;
-        JSON_doubleList *h = oc->keys_head;
+            memcpy(ns, v->data, v->len);
+            ns[v->len] = 0;
+            cp->data = ns;
+            break;
 
-        while(h != NULL){
-            JSON_insertDict(nc, JSON_copyValue(h->val), JSON_copyValue(JSON_getDict(oc, h->val)));
-            h = h->next;
-        }
+        case ARRAY_JT:
+            
+            JSON_container *na = JSON_createContainer(), *oa = v->data;
+            if(na == NULL) return NULL;
 
-        cp->data = nc;    
+            JSON_val **arr = (JSON_val **) oa->arr;
 
-    default:
-        break;
+            for(int i = 0; i < oa->val_c; ++i){
+
+                JSON_val *c = JSON_copyValue(arr[i]);
+
+                if(!JSON_pushback(na, c)){
+                    JSON_destroyValue(c);
+                    JSON_destroyContainer(na, ARRAY_JT);
+                    return NULL;
+                }
+
+            } 
+            cp->data = na;
+            break;
+
+        case OBJECT_JT:
+
+            JSON_container *nc = JSON_createContainer(), *oc = v->data;
+            JSON_doubleList *h = oc->keys_head;
+
+            while(h != NULL){
+                JSON_val *k = JSON_copyValue(h->val),
+                        *v = JSON_copyValue(JSON_getDict(oc, h->val));
+                
+                if(!JSON_insertDict(nc, k, v)){
+                    JSON_destroyValue(k);
+                    JSON_destroyValue(v);
+                    JSON_destroyContainer(nc, OBJECT_JT);
+                }
+                h = h->next;
+            }
+
+            cp->data = nc;    
+            break;
+
+        default:
+            break;
     }
 
     return cp;
 
+}
+
+JSON_container* JSON_createContainer(){
+    
+    ALLOC(arr, JSON_container);
+    
+    if(arr != NULL){
+        arr->size = 0;
+        arr->val_c = 0;
+        arr->arr = NULL;
+        arr->keys_head = NULL;
+        arr->keys_end = NULL;
+    }
+        
+    return arr;
 }
 
 void JSON_destroyContainer(JSON_container *c, obj_t type){
@@ -397,22 +462,6 @@ void JSON_destroyContainer(JSON_container *c, obj_t type){
 
 };
 
-JSON_val *JSON_getDict(JSON_container *dct, JSON_val *key){
-
-    size_t loc = JSON_hash(key) % dct->size;
-
-    JSON_dictList *cn = dct->arr[loc];
-    while(cn != NULL){
-        if(JSON_cmpkey(key, cn->key)){
-            return cn->val;
-        }
-        cn = cn->next;
-    }
-
-    return NULL;
-
-}
-
 char JSON_cmpkey(JSON_val *a, JSON_val *b){
     
     if(a->type != b->type) return 0;
@@ -421,20 +470,6 @@ char JSON_cmpkey(JSON_val *a, JSON_val *b){
     
     return JSON_matchString(a->data, b->data, a->len, b->len);
 
-}
-
-JSON_container* JSON_createContainer(){
-    
-    ALLOC(arr, JSON_container);
-    
-    if(arr != NULL){
-        arr->size = 0;
-        arr->val_c = 0;
-        arr->keys_end = NULL;
-        arr->keys_head = NULL;
-    }
-        
-    return arr;
 }
 
 char JSON_matchString(char *str1, char *str2, size_t len1, size_t len2){

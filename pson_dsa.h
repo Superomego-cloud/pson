@@ -55,7 +55,8 @@ JSON_val *PSON_dereferenceValue(PSON_scope *scope, JSON_val *var){
     }
 
     JSON_val *v = JSON_getDict(scope->dict, pair[0]);
-    if(v == NULL) return PSON_dereferenceValue(scope->par, var);
+    if(v == NULL) return PSON_dereferenceValue(scope->par, var);;
+    
 
     free(pair);
     free(var);
@@ -84,6 +85,8 @@ PSON_scope *PSON_createScope(PSON_scope *par){
 }
 
 void PSON_destroyScope(PSON_scope *scope){
+    
+    if(scope == NULL) return;
     JSON_destroyContainer(scope->dict, OBJECT_JT);
     return;
 
