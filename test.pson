@@ -1,6 +1,8 @@
 {
-    one="text";
-    one="different_text";
-    one:two="moreshi",
-    "file":[one, [1, two], "end"]
+    CONST_1=1;
+    "local":{
+        CONST_1=2;
+        "val_in":CONST_1
+    },
+    "global": CONST_1
 }

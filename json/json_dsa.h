@@ -362,6 +362,7 @@ JSON_val *JSON_copyValue(JSON_val *v){
 
             memcpy(ns, v->data, v->len);
             ns[v->len] = 0;
+            cp->len = v->len;
             cp->data = ns;
             break;
 

@@ -40,7 +40,7 @@ void JSON_printVal(JSON_val *v){
             while(lst != NULL){
                 
                 JSON_printVal(lst->val);
-                printf(":");
+                printf(": ");
 
                 JSON_printVal(JSON_getDict(dct, lst->val));
                 if(lst->next != NULL) printf(", ");
@@ -49,9 +49,8 @@ void JSON_printVal(JSON_val *v){
 
             printf("}");
             break;
-
         default:
-            printf("[SPEV]");
+            printf("[UNKNOWN TYPE]");
     }
 }
 

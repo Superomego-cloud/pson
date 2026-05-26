@@ -46,7 +46,7 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
     ALLOC(vn, JSON_val);
     ALLOC(vs, JSON_val);
     M_ALLOC(pair, JSON_val*, 2);
-    M_ALLOC(buf, char, s-st);
+    M_ALLOC(buf, char, s-st+1);
     
     if(vs == NULL || pair == NULL || vn == NULL){
         free(vs);
@@ -57,9 +57,11 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
     
 
     memcpy(buf, data+st, s-st);
+    buf[s-st] = 0;
     vn->type = VAR_JT;
     vn->data = buf;
     vn->len = s-st;
+
     
     pair[0] = vn;
     pair[1] = NULL;
@@ -108,8 +110,19 @@ JSON_val *PSON_parseVar(PSON_scope *scope, char *data, size_t dlen){
         return NULL;
     }
 
-    pair[1] = var_v;
     s += var_v->len;
+    if(var_v->type == PAIR_JT){
+        var_v = PSON_dereferenceValue(scope, var_v);
+        if(var_v == NULL){
+            free(buf);
+            free(pair[0]);
+            free(pair);
+            free(vs);
+            return NULL;
+        }
+    }
+
+    pair[1] = var_v;
     vs->len = s;
     return vs;
 
@@ -181,16 +194,13 @@ JSON_val *PSON_parseSequence(PSON_scope *scope, char start, char end, char sep, 
 
         if(cv != NULL){
             s += cv->len;
+            if(cv->type == PAIR_JT){
+                cv = PSON_dereferenceValue(local, cv);
+                if(cv == NULL) break;
+            }
             continue;
         }
 
-        cv = PSON_parseVar(local, data + s, dlen - s);
-
-        if(cv != NULL){
-            s += cv->len;
-            cv = PSON_dereferenceValue(local, cv);
-            if(cv != NULL) continue;
-        } 
         break;
     }
 
@@ -212,7 +222,7 @@ Returns a dictionary whose key/value pairs
 are the entries described
 */
 JSON_val *PSON_parseMembers(PSON_scope *scope, char start, char end, char pair, char sep, char *data, 
-                            size_t dlen, JSON_ParserFunc parser_first, PSON_ParserFunc parser_second){
+                            size_t dlen, PSON_ParserFunc parser_first, PSON_ParserFunc parser_second){
 
     if(dlen == 0) return NULL;
     if(data[0] != start) return NULL;
@@ -287,26 +297,15 @@ JSON_val *PSON_parseMembers(PSON_scope *scope, char start, char end, char pair, 
         if(kf){ 
             
             if(ck != NULL) break;
-            if(c == '"') ck = parser_first(data + s, dlen - s);
+            ck = parser_first(local, data + s, dlen - s);
 
             if(ck != NULL){
+
                 s += ck->len;
-                continue;
-            }
-
-            JSON_val *var = PSON_parseVar(scope, data + s, dlen - s);
-            
-            if(var != NULL){
-
-                size_t n = var->len;
-                JSON_val *v = PSON_dereferenceValue(local, var);
-                if(v == NULL) break;
-                if(v->type != STRING_JT){
-                    JSON_destroyValue(v);
-                    break;
+                if(ck->type == PAIR_JT){
+                    ck = PSON_dereferenceValue(local, ck);
+                    if(ck == NULL) break;
                 }
-
-                s += n;
 
                 while(s < dlen){
                     if(iswhitespace(data[s])) ++s;
@@ -316,16 +315,17 @@ JSON_val *PSON_parseMembers(PSON_scope *scope, char start, char end, char pair, 
                 if(s != dlen){
 
                     if(data[s] == ';'){
-                        ++s;
+                        s++;
+                        ck = NULL;
                         continue;
                     }
                     if(data[s] == pair){
-
-                        ck = v;
+                        if(ck->type != STRING_JT) break;
                         continue;
                     }
-
                 }
+
+                continue;
             }
 
             break;
@@ -338,17 +338,12 @@ JSON_val *PSON_parseMembers(PSON_scope *scope, char start, char end, char pair, 
             
             if(cv != NULL){
                 s += cv->len;
+                if(cv->type == PAIR_JT){
+                    cv = PSON_dereferenceValue(local, cv);
+                    if(cv == NULL) break;
+                }
                 continue;
             }
-
-            cv = PSON_parseVar(local, data + s, dlen - s);
-
-            if(cv != NULL){
-                s += cv->len;
-                cv = PSON_dereferenceValue(local, cv);
-                if(cv != NULL) continue;
-            } 
-
             break;
 
         }
@@ -370,7 +365,7 @@ Parses a JSON object. Pretty straightforward.
 */
 inline JSON_val *PSON_parseObject(PSON_scope *scope, char *data, size_t dlen){
     return PSON_parseMembers(scope, '{', '}', ':', ',',
-                             data, dlen, JSON_parseString, PSON_parseValue);
+                             data, dlen, PSON_parseValue, PSON_parseValue);
 }
 
 JSON_val *PSON_parseValue(PSON_scope *scope, char *data, size_t dlen){
@@ -384,7 +379,11 @@ JSON_val *PSON_parseValue(PSON_scope *scope, char *data, size_t dlen){
     else if(c == '[') ret = PSON_parseArray(scope, data, dlen);
     else if(c == '"') ret = JSON_parseString(data, dlen);
     else if(isdigit(c) || issign(c)) ret = JSON_parseNumeric(data, dlen);
-    else ret = JSON_parseSpecial(data, dlen);
+    else{
+        ret = JSON_parseSpecial(data, dlen);
+        if(ret == NULL) ret = PSON_parseVar(scope, data, dlen);
+    }
+
 
     return ret;
 
