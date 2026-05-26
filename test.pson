@@ -1,6 +1,6 @@
 {
     one="text";
-    two="moreshi";
-    one="different_text":two,
+    one="different_text";
+    one:two="moreshi",
     "file":[one, [1, two], "end"]
 }
