@@ -9,28 +9,12 @@ with given attributes while specifying arguments and default values for said arg
 Variable functions and features are defined like so: 
 
 ```
-var x = y, // defines the value of variable x to be y
-
+y = [literal];
+x = y; // defines the value of variable x to be y
+z=y:[literal],
+[string]:z,
+x:z,
 func name(args){
     // expression of a JSON object
-}
-```
-Additionally, to use a variable's value, you have to use angle brackets
-
-```
-<varname>                    // This is equivalent to the value contained within variable varname
-<funcname(arg1, arg2, arg3)> // this is equivalent to calling the function funcname
-                             // with the given args
-```
-
-using the <> operator on a variable gives you the specific variable value in of itself, so you can use it when assigning variables and when calling/defining functions
-
-```
-var varname = <var2name>
-funcname(<varname>, <var2name>)
-func funcname(){
-    "attr1":<globalvar1>,
-    <globalvar2>:"value",
-    <globalvar3>:<globalvar4>
 }
 ```
